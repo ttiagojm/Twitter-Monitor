@@ -6,20 +6,20 @@ import webbrowser
 
 load_dotenv()
 
-# consumer tokens
-consumer_key = os.getenv("CONSUMER_KEY")
-consumer_secret = os.getenv("CONSUMER_SECRET")
-# tokens
-access_token = os.getenv("ACCESS_TOKEN")
-access_token_secret = os.getenv("ACCESS_TOKEN_SECRET")
-
+# Tokens
+tokens = {
+    "CONSUMER_KEY": os.getenv("CONSUMER_KEY"),
+    "CONSUMER_SECRET": os.getenv("CONSUMER_SECRET"),
+    "ACCESS_TOKEN": os.getenv("ACCESS_TOKEN"),
+    "ACCESS_TOKEN_SECRET": os.getenv("ACCESS_TOKEN_SECRET"),
+}
 
 def get_api_with_tokens():
 
     try:
-        auth = OAuthHandler(os.environ["CONSUMER_KEY"], os.environ["CONSUMER_SECRET"])
+        auth = OAuthHandler(tokens["CONSUMER_KEY"], tokens["CONSUMER_SECRET"])
         auth.secure = True
-        auth.set_access_token(os.environ["ACCESS_TOKEN"], os.environ["ACCESS_TOKEN_SECRET"])
+        auth.set_access_token(tokens["ACCESS_TOKEN"], tokens["ACCESS_TOKEN_SECRET"])
         api = API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
 
     except BaseException as e:
@@ -29,24 +29,18 @@ def get_api_with_tokens():
     return api
 
 def get_api():
-    # consumer tokens
-    consumer_key = os.getenv("CONSUMER_KEY")
-    consumer_secret = os.getenv("CONSUMER_SECRET")
-
-    # tokens
-    access_token = os.getenv("ACCESS_TOKEN")
-    access_token_secret = os.getenv("ACCESS_TOKEN_SECRET")
 
     try:
-        auth = OAuthHandler(consumer_key, consumer_secret)
+        auth = OAuthHandler(tokens["CONSUMER_KEY"], tokens["CONSUMER_SECRET"])
 
         try:
             redirect_url = auth.get_authorization_url()
             webbrowser.open(redirect_url)
-        except:
+        except Exception as e:
             print("Error getting request token")
+            print(e)
 
-        verifier = input("Paste the code from your browser::")
+        verifier = input("Paste the code from your browser: ")
 
         try:
             auth.get_access_token(verifier)
@@ -54,8 +48,8 @@ def get_api():
             print("Error getting access token")
             sys.exit(1)
 
-        # auth.secure = True
-        auth.set_access_token(auth.access_token, auth.access_token_secret)
+        auth.secure = True
+        #auth.set_access_token(tokens["ACCESS_TOKEN"], tokens["ACCESS_TOKEN_SECRET"])
         api = API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
 
     except BaseException as e:

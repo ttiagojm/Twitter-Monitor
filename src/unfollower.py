@@ -1,37 +1,8 @@
-from src.auth import get_api
+from .config import UNFOLLOWER_PATHS, threshold_followers, lastMonth
+from .utils import thread_jobs, serialize, deserialize
 from tweepy import Cursor
 import os
-import concurrent.futures
 import datetime
-
-""" FILENAMES"""
-
-# Filename for each type of ids
-friends_file = "ids.txt"
-mentions_file = "mention_ids.txt"
-friends_followers_file = "friends_followers.txt"
-big_accounts_file = "big_accounts.txt"
-
-""" CONSTANTS """
-
-# Threshold to verify if an account has the right ammount of followers
-# to be classified as "Big Account"
-threshold_followers = 5000
-
-# Since date until some date (in this case 30 days)
-today = datetime.date.today()
-lastMonth = today - datetime.timedelta(days=30)
-
-
-def thread_jobs(job, *args):
-    """ Thread Functions """
-
-    res = None
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # *args here unpack the tuple into single arguments
-        res = executor.submit(job, *args)
-
-    return res.result()
 
 
 def read_write_ids(filename, mode, ids=None):
@@ -39,25 +10,22 @@ def read_write_ids(filename, mode, ids=None):
 
     # Write id list on a file
     if mode == "w":
-
         # Save the ids on a file
-        with open(filename, "w") as f:
-            for idt in ids:
-                f.write("%s\n" % str(idt))
+        for idt in ids:
+            serialize(filename, str(idt))
 
     # Read id file to an list
     else:
-        with open(filename, "rb") as f:
-            ids = f.readlines()
-            ids = [int(i) for i in ids]
+        ids = []
+
+        for idt in deserialize(filename):
+            ids.append(idt)
 
         return ids
 
-    return
-
 
 def get_friends_ids(api):
-    """ Just get all ids of all people that the account follow"""
+    # Just get all ids of all people that the account follow
     return [user.id for user in Cursor(api.friends, screen_name=api.me().screen_name).items()]
 
 
@@ -158,59 +126,48 @@ def unfollow(api, friends_ids, not_unfollow_ids):
     return
 
 
-def unfollow_people(ROOT_DIR):
-
-    ROOT_DIR = os.path.join(ROOT_DIR, "tmp")
-
-    api = get_api()
+def unfollow_people(api):
 
     """ I/O different ids """
 
     # All friends/following ID's
-    path_friends_file = os.path.join(ROOT_DIR, friends_file)
 
-    if os.path.exists(path_friends_file):
-        ids = thread_jobs(read_write_ids, path_friends_file, "r")
+    if os.path.exists(UNFOLLOWER_PATHS["FRIENDS_FILE"]):
+        ids = thread_jobs(read_write_ids, UNFOLLOWER_PATHS["FRIENDS_FILE"], "r")
     else:
         ids = thread_jobs(get_friends_ids, api)
-        thread_jobs(read_write_ids, path_friends_file, "w", ids)
+        thread_jobs(read_write_ids, UNFOLLOWER_PATHS["FRIENDS_FILE"], "w", ids)
 
     print("Friends number: ", len(ids))
 
     # Get mention and reply ids
 
-    path_mentions_file = os.path.join(ROOT_DIR, mentions_file)
-
-    if os.path.exists(path_mentions_file):
-        mention_ids = thread_jobs(read_write_ids, path_mentions_file, "r")
+    if os.path.exists(UNFOLLOWER_PATHS["MENTIONS_FILE"]):
+        mention_ids = thread_jobs(read_write_ids, UNFOLLOWER_PATHS["MENTIONS_FILE"], "r")
     else:
         mention_ids = thread_jobs(get_mention_ids, api)
         mention_ids = thread_jobs(following_mention_ids, api, mention_ids)
-        thread_jobs(read_write_ids, path_mentions_file, "w", mention_ids)
+        thread_jobs(read_write_ids, UNFOLLOWER_PATHS["MENTIONS_FILE"], "w", mention_ids)
 
     print("Mention and reply number: ", len(mention_ids))
 
     # Get friends that follow the account too
 
-    path_friends_followers_file = os.path.join(ROOT_DIR, friends_followers_file)
-
-    if os.path.exists(path_friends_followers_file):
-        friends_followers_ids = thread_jobs(read_write_ids, path_friends_followers_file, "r")
+    if os.path.exists(UNFOLLOWER_PATHS["FRIENDS_FOLLOWERS_FILE"]):
+        friends_followers_ids = thread_jobs(read_write_ids, UNFOLLOWER_PATHS["FRIENDS_FOLLOWERS_FILE"], "r")
     else:
         friends_followers_ids = thread_jobs(friend_follows_me, api, ids)
-        thread_jobs(read_write_ids, path_friends_followers_file, "w", friends_followers_ids)
+        thread_jobs(read_write_ids, UNFOLLOWER_PATHS["FRIENDS_FOLLOWERS_FILE"], "w", friends_followers_ids)
 
     print("Friends and Followers number: ", len(friends_followers_ids))
 
     # Get big accounts ids
 
-    path_big_accounts_file = os.path.join(ROOT_DIR, big_accounts_file)
-
-    if os.path.exists(path_big_accounts_file):
-        big_accs_ids = thread_jobs(read_write_ids, path_big_accounts_file, "r")
+    if os.path.exists(UNFOLLOWER_PATHS["BIG_ACCOUNTS_FILE"]):
+        big_accs_ids = thread_jobs(read_write_ids, UNFOLLOWER_PATHS["BIG_ACCOUNTS_FILE"], "r")
     else:
         big_accs_ids = thread_jobs(big_accounts, api, ids)
-        thread_jobs(read_write_ids, path_big_accounts_file, "w", big_accs_ids)
+        thread_jobs(read_write_ids, UNFOLLOWER_PATHS["BIG_ACCOUNTS_FILE"], "w", big_accs_ids)
 
     print("Big accounts number: ", len(big_accs_ids))
 

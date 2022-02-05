@@ -1,4 +1,5 @@
-from auth import get_api_with_tokens
+from .config import TMP_DIR
+from .utils import serialize, deserialize
 import tweepy
 import os
 
@@ -15,21 +16,16 @@ def writeFollowersIds(api, username, PATH_FILENAME):
 
 	followers_ids = getFollowersIds(api, username)
 
-	with open(PATH_FILENAME, "wb") as f:
-		for follower_id in followers_ids:
-
-			follower_id = follower_id+"\n"
-
-			f.write(bytes(follower_id, "utf_8"))
+	for follower_id in followers_ids:
+		serialize(PATH_FILENAME, follower_id)
 
 
 def readFollowersIds(PATH_FILENAME):
 
 	followers_ids = []
 
-	with open(PATH_FILENAME, "rb") as f:
-		for line in f:
-			followers_ids.append(line.rstrip().decode("utf_8"))
+	for idt in deserialize(PATH_FILENAME):
+		followers_ids.append(idt)
 
 	return followers_ids
 
@@ -46,22 +42,19 @@ def getMissingIds(api, f_ids_file, f_ids_api):
 			print("\n\n#=====================#")
 			print("@" + usr.screen_name)
 			print("Desc: " + usr.description)
+
 		except:
 			print("Account doesn't exist anymore or something happened to it: ", str(unfollower))
 	print("\n\n")
 
 
-def get_unfollowers(ROOT_DIR):
-
-	api = get_api_with_tokens()
+def get_unfollowers(api):
 
 	USERNAME = input("Insert the @ of the account: ").rstrip()
 
-	ROOT_DIR = os.path.join(ROOT_DIR, "tmp")
-	PATH_FILENAME = os.path.join(ROOT_DIR, f"followers_ids_{USERNAME}.txt")
+	PATH_FILENAME = os.path.join(TMP_DIR, f"followers_ids_{USERNAME}.txt")
 
 	# Write all followers
-
 	if not os.path.exists(PATH_FILENAME):
 		print("### Creating files with IDs ###")
 		writeFollowersIds(api, USERNAME, PATH_FILENAME)
